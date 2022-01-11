@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"time"
+	"os"
+	"os/signal"
 
 	"portto"
 )
@@ -17,14 +19,17 @@ func main() {
 	}
 
 	go i.Run()
-	block, err := i.GetBlock(14266189)
-	if err != nil {
-		log.Printf("GetBlock Error, %v", err)
-	} else {
-		log.Printf("got block %d", block.Number().Uint64())
+
+	fmt.Println("Press Ctrl+C to interrupt...")
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt)
+
+	for {
+		select {
+		case <-done:
+			repo.ShowBlocks()
+			fmt.Println("Bye Bye...")
+			os.Exit(1)
+		}
 	}
-
-	time.Sleep(5 * time.Second)
-
-	repo.ShowBlocks()
 }
