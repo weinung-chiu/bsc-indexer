@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type Indexer struct {
-	endpoint string
+	endpoint  string
+	ethClient *Client
 
 	repo Repository
 
@@ -18,13 +21,18 @@ type Indexer struct {
 
 const MaxWorker = 3
 
-func NewIndexer(endpoint string, repo Repository) *Indexer {
-	return &Indexer{
-		endpoint: endpoint,
-		repo:     repo,
-		jobs:     make(chan uint64),
-		errors:   make(chan error),
+func NewIndexer(endpoint string, repo Repository) (*Indexer, error) {
+	c, err := NewClient(endpoint)
+	if err != nil {
+		return nil, err
 	}
+	return &Indexer{
+		endpoint:  endpoint,
+		ethClient: c,
+		repo:      repo,
+		jobs:      make(chan uint64),
+		errors:    make(chan error),
+	}, nil
 }
 
 func (idx *Indexer) Run() {
@@ -43,8 +51,19 @@ func (idx *Indexer) Run() {
 	}
 }
 
-func (idx *Indexer) GetBlock(number uint64) {
-	idx.jobs <- number
+func (idx *Indexer) GetBlock(number uint64) (*types.Block, error) {
+	// todo : these code should merge to worker
+	block, err := idx.ethClient.GetBlockByNumber(context.TODO(), number)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get block by number, %v", err)
+	}
+
+	err = idx.repo.StoreBlock(block)
+	if err != nil {
+		idx.errors <- fmt.Errorf("failed to store block, %v", err)
+	}
+
+	return block, nil
 }
 
 func (idx *Indexer) Worker(id int, endpoint string) {
