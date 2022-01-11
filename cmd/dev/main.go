@@ -8,7 +8,7 @@ import (
 
 func main() {
 	rpcEndpoint := "https://bsc-dataseed1.ninicoin.io/"
-	repo := &portto.InMemoryStore{}
+	repo := portto.NewInMemoryStore()
 
 	i := portto.NewIndexer(rpcEndpoint, repo)
 
@@ -17,4 +17,6 @@ func main() {
 	i.GetBlock(14266190)
 
 	time.Sleep(5 * time.Second)
+
+	repo.ShowBlocks()
 }

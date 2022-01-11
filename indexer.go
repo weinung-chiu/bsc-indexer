@@ -61,7 +61,8 @@ func (idx *Indexer) Worker(id int, endpoint string) {
 			idx.errors <- fmt.Errorf("failed to get block, %v", err)
 		}
 
-		log.Printf("Worker %d got block %d\n", id, block.Number().Uint64())
-		log.Printf("Block Hash : %s", block.Hash().String())
+		_ = idx.repo.StoreBlock(block)
+
+		log.Printf("Worker %d got block %d and store to repository\n", id, block.Number().Uint64())
 	}
 }
