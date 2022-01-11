@@ -52,6 +52,11 @@ func (idx *Indexer) Run() {
 }
 
 func (idx *Indexer) GetBlock(number uint64) (*types.Block, error) {
+	block := idx.repo.GetBlock(number)
+	if block != nil {
+		return block, nil
+	}
+
 	// todo : these code should merge to worker
 	block, err := idx.ethClient.GetBlockByNumber(context.TODO(), number)
 	if err != nil {
@@ -62,6 +67,9 @@ func (idx *Indexer) GetBlock(number uint64) (*types.Block, error) {
 	if err != nil {
 		idx.errors <- fmt.Errorf("failed to store block, %v", err)
 	}
+
+	log.Printf("indexer client got block %d and store to repository\n", block.Number().Uint64())
+	// end of code should move
 
 	return block, nil
 }

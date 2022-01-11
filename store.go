@@ -2,7 +2,6 @@ package portto
 
 import (
 	"fmt"
-	"sort"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -10,34 +9,40 @@ import (
 
 type Repository interface {
 	StoreBlock(block *types.Block) error
+	GetBlock(number uint64) *types.Block
 }
 
 func NewInMemoryStore() *InMemoryStore {
 	return &InMemoryStore{
-		blocks: make([]*types.Block, 0),
+		blocks: make(map[uint64]*types.Block, 0),
 	}
 }
 
 type InMemoryStore struct {
-	blocks []*types.Block
+	blocks map[uint64]*types.Block
 	sync.RWMutex
+}
+
+func (s *InMemoryStore) GetBlock(number uint64) *types.Block {
+	block, ok := s.blocks[number]
+	if !ok {
+		return nil
+	}
+
+	return block
 }
 
 func (s *InMemoryStore) StoreBlock(block *types.Block) error {
 	s.Lock()
 	defer s.Unlock()
-	s.blocks = append(s.blocks, block)
+	s.blocks[block.NumberU64()] = block
 
 	return nil
 }
 
 func (s *InMemoryStore) ShowBlocks() {
-	sort.Slice(s.blocks, func(i, j int) bool {
-		return s.blocks[i].Number().Uint64() > s.blocks[j].Number().Uint64()
-	})
-
 	fmt.Printf("%d block(s) in memory store...\n", len(s.blocks))
-	for _, block := range s.blocks {
-		fmt.Printf("Block: %d timestamp: %d Hash: %s\n", block.Number(), block.Time(), block.Hash().String())
+	for num, block := range s.blocks {
+		fmt.Printf("Block: %d timestamp: %d Hash: %s\n", num, block.Time(), block.Hash().String())
 	}
 }
