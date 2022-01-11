@@ -22,10 +22,10 @@ type Indexer struct {
 const MaxWorker = 3
 
 // Interval represent add new block to fetch queue (in second)
-const Interval = 3
+const Interval = 10
 
 // MinimalBlockNumber when crawl
-const MinimalBlockNumber = 14272674
+const MinimalBlockNumber = 14274321
 
 func NewIndexer(endpoint string, repo Repository) (*Indexer, error) {
 	c, err := NewClient(endpoint)
@@ -50,7 +50,7 @@ func (idx *Indexer) Run() {
 		select {
 		case <-time.Tick(Interval * time.Second):
 			if len(idx.jobs) > 0 {
-				log.Printf("got %d job(s) to do, skiping...", len(idx.jobs))
+				log.Printf("got %d job(s) to do, new job skiped", len(idx.jobs))
 			} else {
 				go idx.addNewBlockToJobQueue()
 			}
@@ -76,10 +76,9 @@ func (idx *Indexer) addNewBlockToJobQueue() {
 		from = MinimalBlockNumber + 1
 	}
 
-	log.Printf("addNewBlockToJobQueue : from %d to %d\n", from, latestInChain)
+	log.Printf("adding new jobs to queue : from %d to %d\n", from, latestInChain)
 	for i := from; i <= latestInChain; i++ {
 		idx.jobs <- i
-		log.Printf("added number %d to queue", i)
 	}
 }
 
@@ -93,7 +92,6 @@ func (idx *Indexer) GetBlock(number uint64) (*types.Block, error) {
 }
 
 func (idx *Indexer) Worker(id int, endpoint string) {
-	log.Printf("Worker %d generated\n", id)
 	client, err := NewClient(endpoint)
 	if err != nil {
 		idx.errors <- fmt.Errorf("failed to create Client, %v", err)
@@ -107,7 +105,5 @@ func (idx *Indexer) Worker(id int, endpoint string) {
 		}
 
 		_ = idx.repo.StoreBlock(block)
-
-		log.Printf("Worker %d got block %d and store to repository\n", id, block.Number().Uint64())
 	}
 }

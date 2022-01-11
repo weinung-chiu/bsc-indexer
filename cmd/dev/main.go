@@ -27,6 +27,7 @@ func main() {
 	for {
 		select {
 		case <-done:
+			fmt.Println("")
 			repo.ShowBlocks()
 			fmt.Println("Bye Bye...")
 			os.Exit(1)
