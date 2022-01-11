@@ -2,15 +2,92 @@ package portto
 
 import (
 	"fmt"
+	"log"
+	"math/big"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"gorm.io/gorm"
 )
 
 type Repository interface {
 	StoreBlock(block *types.Block) error
 	GetBlock(number uint64) *types.Block
 	GetLatestNumber() uint64
+}
+
+type SQLStore struct {
+	db *gorm.DB
+}
+
+func NewSQLStore(db *gorm.DB) *SQLStore {
+	return &SQLStore{
+		db: db,
+	}
+}
+
+func (s SQLStore) StoreBlock(b *types.Block) error {
+	model := &block{
+		Number:     b.NumberU64(),
+		Hash:       b.Hash().String(),
+		Time:       b.Time(),
+		ParentHash: b.ParentHash().String(),
+	}
+	result := s.db.Create(model)
+	if result.Error != nil {
+		return fmt.Errorf("failed to create MySQL record")
+	}
+
+	return nil
+}
+
+func (s SQLStore) GetBlock(number uint64) *types.Block {
+	b := &block{}
+
+	result := s.db.First(b, number)
+
+	if result.Error == gorm.ErrRecordNotFound {
+		return nil
+	}
+
+	if result.Error != nil {
+		// todo: should return error here
+		log.Fatal("failed to get block, ", result.Error)
+	}
+
+	h := &types.Header{
+		ParentHash: common.HexToHash(b.ParentHash),
+		Number:     big.NewInt(int64(b.Number)),
+		Time:       b.Time,
+	}
+	blockWithHeader := types.NewBlockWithHeader(h)
+
+	// todo: should return custom struct instead of *types.Block
+	return blockWithHeader
+}
+
+func (s SQLStore) GetLatestNumber() uint64 {
+	b := &block{}
+	result := s.db.Last(b)
+
+	if result.Error == gorm.ErrRecordNotFound {
+		return 0
+	}
+
+	if result.Error != nil {
+		// todo: should return error here
+		log.Fatal("failed to get latest number, ", result.Error)
+	}
+
+	return b.Number
+}
+
+type block struct {
+	Number     uint64
+	Hash       string
+	Time       uint64
+	ParentHash string
 }
 
 func NewInMemoryStore() *InMemoryStore {
