@@ -21,6 +21,12 @@ type Indexer struct {
 
 const MaxWorker = 3
 
+// Interval represent add new block to fetch queue (in second)
+const Interval = 3
+
+// MinimalBlockNumber when crawl
+const MinimalBlockNumber = 14272674
+
 func NewIndexer(endpoint string, repo Repository) (*Indexer, error) {
 	c, err := NewClient(endpoint)
 	if err != nil {
@@ -30,7 +36,7 @@ func NewIndexer(endpoint string, repo Repository) (*Indexer, error) {
 		endpoint:  endpoint,
 		ethClient: c,
 		repo:      repo,
-		jobs:      make(chan uint64),
+		jobs:      make(chan uint64, 10),
 		errors:    make(chan error),
 	}, nil
 }
@@ -40,36 +46,48 @@ func (idx *Indexer) Run() {
 		go idx.Worker(i, idx.endpoint)
 	}
 
-	tick := time.Tick(time.Second)
 	for {
 		select {
-		case <-tick:
-			log.Println("tick...")
+		case <-time.Tick(Interval * time.Second):
+			if len(idx.jobs) > 0 {
+				log.Printf("got %d job(s) to do, skiping...", len(idx.jobs))
+			} else {
+				go idx.addNewBlockToJobQueue()
+			}
 		case err := <-idx.errors:
 			log.Printf("error received : %v", err)
 		}
 	}
 }
 
+func (idx *Indexer) addNewBlockToJobQueue() {
+	latestInChain, err := idx.ethClient.GetBlockNumber(context.TODO())
+	if err != nil {
+		idx.errors <- fmt.Errorf("failed to get latest number on chain, %v", err)
+		return
+	}
+
+	latestInDB := idx.repo.GetLatestNumber()
+
+	var from uint64
+	if latestInDB > MinimalBlockNumber {
+		from = latestInDB + 1
+	} else {
+		from = MinimalBlockNumber + 1
+	}
+
+	log.Printf("addNewBlockToJobQueue : from %d to %d\n", from, latestInChain)
+	for i := from; i <= latestInChain; i++ {
+		idx.jobs <- i
+		log.Printf("added number %d to queue", i)
+	}
+}
+
 func (idx *Indexer) GetBlock(number uint64) (*types.Block, error) {
 	block := idx.repo.GetBlock(number)
-	if block != nil {
-		return block, nil
+	if block == nil {
+		return nil, fmt.Errorf("block not found")
 	}
-
-	// todo : these code should merge to worker
-	block, err := idx.ethClient.GetBlockByNumber(context.TODO(), number)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get block by number, %v", err)
-	}
-
-	err = idx.repo.StoreBlock(block)
-	if err != nil {
-		idx.errors <- fmt.Errorf("failed to store block, %v", err)
-	}
-
-	log.Printf("indexer client got block %d and store to repository\n", block.Number().Uint64())
-	// end of code should move
 
 	return block, nil
 }
