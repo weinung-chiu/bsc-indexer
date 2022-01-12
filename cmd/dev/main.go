@@ -1,11 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
-	"time"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -26,22 +26,14 @@ func main() {
 	}
 	repo := portto.NewSQLStore(db)
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	i, err := portto.NewIndexer(rpcEndpoint, repo)
 	if err != nil {
 		log.Fatal("failed to make new indexer, ", err)
 	}
 
-	go i.Run()
-
-	block, _ := i.GetBlock(13000000)
-	if block == nil {
-		log.Println("block not found")
-	} else {
-		log.Printf("got block %d\n", block.Number)
-		log.Printf("block hash : %s\n", block.Hash)
-		log.Printf("block time : %d\n", block.Time)
-		log.Printf("parent hash : %s\n", block.ParentHash)
-	}
+	go i.Run(ctx)
 
 	block, _ = i.GetBlock(14274329)
 	if block == nil {
@@ -85,10 +77,9 @@ func main() {
 	for {
 		select {
 		case <-done:
-			//todo: set context here
-
+			cancel()
+			i.StopWait()
 			fmt.Println("")
-
 			fmt.Println("Bye Bye...")
 			os.Exit(1)
 		}
