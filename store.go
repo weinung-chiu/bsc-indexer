@@ -15,7 +15,7 @@ type Repository interface {
 	StoreBlock(block *types.Block) error
 	GetBlock(number uint64) *types.Block
 	GetLatestNumber() uint64
-	GetNewBlocks(limit int) ([]*block, error)
+	GetNewBlocks(limit int) ([]*Block, error)
 }
 
 type SQLStore struct {
@@ -28,8 +28,8 @@ func NewSQLStore(db *gorm.DB) *SQLStore {
 	}
 }
 
-func (s SQLStore) GetNewBlocks(limit int) ([]*block, error) {
-	var blocks []*block
+func (s SQLStore) GetNewBlocks(limit int) ([]*Block, error) {
+	var blocks []*Block
 
 	result := s.db.Limit(limit).Order("number desc").Find(&blocks)
 
@@ -45,7 +45,7 @@ func (s SQLStore) GetNewBlocks(limit int) ([]*block, error) {
 }
 
 func (s SQLStore) StoreBlock(b *types.Block) error {
-	model := &block{
+	model := &Block{
 		Number:     b.NumberU64(),
 		Hash:       b.Hash().String(),
 		Time:       b.Time(),
@@ -60,7 +60,7 @@ func (s SQLStore) StoreBlock(b *types.Block) error {
 }
 
 func (s SQLStore) GetBlock(number uint64) *types.Block {
-	b := &block{}
+	b := &Block{}
 
 	result := s.db.First(b, number)
 
@@ -85,7 +85,7 @@ func (s SQLStore) GetBlock(number uint64) *types.Block {
 }
 
 func (s SQLStore) GetLatestNumber() uint64 {
-	b := &block{}
+	b := &Block{}
 	result := s.db.Last(b)
 
 	if result.Error == gorm.ErrRecordNotFound {
@@ -98,13 +98,6 @@ func (s SQLStore) GetLatestNumber() uint64 {
 	}
 
 	return b.Number
-}
-
-type block struct {
-	Number     uint64
-	Hash       string
-	Time       uint64
-	ParentHash string
 }
 
 func NewInMemoryStore() *InMemoryStore {

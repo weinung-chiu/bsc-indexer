@@ -108,7 +108,7 @@ func (idx *Indexer) Worker(id int, endpoint string) {
 	}
 }
 
-func (idx Indexer) GetNewBlocks(limit int) ([]*block, error) {
+func (idx Indexer) GetNewBlocks(limit int) ([]*Block, error) {
 
 	return idx.repo.GetNewBlocks(limit)
 }
