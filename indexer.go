@@ -72,7 +72,11 @@ func (idx *Indexer) addNewBlockToJobQueue(ctx context.Context) {
 		return
 	}
 
-	latestInDB := idx.repo.GetLatestNumber()
+	latestInDB, err := idx.repo.GetLatestNumber()
+	if err != nil {
+		idx.errors <- fmt.Errorf("failed to get latest number in DB, %v", err)
+		return
+	}
 
 	var from uint64
 	if latestInDB > MinimalBlockNumber {

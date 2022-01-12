@@ -12,7 +12,7 @@ import (
 type Repository interface {
 	StoreBlock(*Block) error
 	GetBlock(number uint64) (*Block, error)
-	GetLatestNumber() uint64
+	GetLatestNumber() (uint64, error)
 	GetNewBlocks(limit int) ([]*Block, error)
 }
 
@@ -67,20 +67,19 @@ func (s SQLStore) GetBlock(number uint64) (*Block, error) {
 	return b, nil
 }
 
-func (s SQLStore) GetLatestNumber() uint64 {
+func (s SQLStore) GetLatestNumber() (uint64, error) {
 	b := &Block{}
 	result := s.db.Last(b)
 
 	if result.Error == gorm.ErrRecordNotFound {
-		return 0
+		return 0, nil
 	}
 
 	if result.Error != nil {
-		// todo: should return error here
-		log.Fatal("failed to get latest number, ", result.Error)
+		return 0, result.Error
 	}
 
-	return b.Number
+	return b.Number, nil
 }
 
 func NewInMemoryStore() *InMemoryStore {
