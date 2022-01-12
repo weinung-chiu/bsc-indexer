@@ -107,3 +107,8 @@ func (idx *Indexer) Worker(id int, endpoint string) {
 		_ = idx.repo.StoreBlock(block)
 	}
 }
+
+func (idx Indexer) GetNewBlocks(limit int) ([]*block, error) {
+
+	return idx.repo.GetNewBlocks(limit)
+}

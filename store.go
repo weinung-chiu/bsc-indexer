@@ -15,6 +15,7 @@ type Repository interface {
 	StoreBlock(block *types.Block) error
 	GetBlock(number uint64) *types.Block
 	GetLatestNumber() uint64
+	GetNewBlocks(limit int) ([]*block, error)
 }
 
 type SQLStore struct {
@@ -25,6 +26,22 @@ func NewSQLStore(db *gorm.DB) *SQLStore {
 	return &SQLStore{
 		db: db,
 	}
+}
+
+func (s SQLStore) GetNewBlocks(limit int) ([]*block, error) {
+	var blocks []*block
+
+	result := s.db.Limit(limit).Order("number desc").Find(&blocks)
+
+	if result.Error == gorm.ErrRecordNotFound {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	if result.Error != nil {
+		log.Fatal("failed to get new blocks, ", result.Error)
+	}
+
+	return blocks, nil
 }
 
 func (s SQLStore) StoreBlock(b *types.Block) error {
