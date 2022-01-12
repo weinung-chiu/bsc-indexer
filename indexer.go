@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log"
 	"time"
-
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type Indexer struct {
@@ -82,10 +80,10 @@ func (idx *Indexer) addNewBlockToJobQueue() {
 	}
 }
 
-func (idx *Indexer) GetBlock(number uint64) (*types.Block, error) {
-	block := idx.repo.GetBlock(number)
-	if block == nil {
-		return nil, fmt.Errorf("block not found")
+func (idx *Indexer) GetBlock(number uint64) (*Block, error) {
+	block, err := idx.repo.GetBlock(number)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get block from repo, %v", err)
 	}
 
 	return block, nil

@@ -3,17 +3,15 @@ package portto
 import (
 	"fmt"
 	"log"
-	"math/big"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"gorm.io/gorm"
 )
 
 type Repository interface {
 	StoreBlock(block *types.Block) error
-	GetBlock(number uint64) *types.Block
+	GetBlock(number uint64) (*Block, error)
 	GetLatestNumber() uint64
 	GetNewBlocks(limit int) ([]*Block, error)
 }
@@ -59,29 +57,20 @@ func (s SQLStore) StoreBlock(b *types.Block) error {
 	return nil
 }
 
-func (s SQLStore) GetBlock(number uint64) *types.Block {
+func (s SQLStore) GetBlock(number uint64) (*Block, error) {
 	b := &Block{}
 
 	result := s.db.First(b, number)
 
 	if result.Error == gorm.ErrRecordNotFound {
-		return nil
+		return nil, gorm.ErrRecordNotFound
 	}
 
 	if result.Error != nil {
-		// todo: should return error here
-		log.Fatal("failed to get block, ", result.Error)
+		return nil, fmt.Errorf("failed to get block, %v", result.Error)
 	}
 
-	h := &types.Header{
-		ParentHash: common.HexToHash(b.ParentHash),
-		Number:     big.NewInt(int64(b.Number)),
-		Time:       b.Time,
-	}
-	blockWithHeader := types.NewBlockWithHeader(h)
-
-	// todo: should return custom struct instead of *types.Block
-	return blockWithHeader
+	return b, nil
 }
 
 func (s SQLStore) GetLatestNumber() uint64 {
