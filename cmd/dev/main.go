@@ -22,49 +22,13 @@ func main() {
 	}
 	repo := portto.NewSQLStore(db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-
 	i, err := portto.NewIndexer(rpcEndpoint, repo)
 	if err != nil {
 		log.Fatal("failed to make new indexer, ", err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
 	go i.Run(ctx)
-
-	block, _ = i.GetBlock(14274329)
-	if block == nil {
-		log.Println("block not found")
-	} else {
-		log.Printf("got block %d\n", block.Number)
-		log.Printf("block hash : %s\n", block.Hash)
-		log.Printf("block time : %d\n", block.Time)
-		log.Printf("parent hash : %s\n", block.ParentHash)
-	}
-	log.Println("waiting...")
-	log.Println("waiting...")
-	log.Println("waiting...")
-	time.Sleep(5 * time.Second)
-
-	blocks, err := i.GetNewBlocks(3)
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, block := range blocks {
-		log.Println(block.Number)
-		log.Println(block.Hash)
-	}
-	log.Println("waiting...")
-	log.Println("waiting...")
-	log.Println("waiting...")
-	time.Sleep(12 * time.Second)
-	blocks, err = i.GetNewBlocks(3)
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, block := range blocks {
-		log.Println(block.Number)
-		log.Println(block.Hash)
-	}
 
 	fmt.Println("Press Ctrl+C to interrupt...")
 	done := make(chan os.Signal, 1)
