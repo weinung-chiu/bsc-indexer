@@ -14,13 +14,9 @@ import (
 
 func main() {
 	rpcEndpoint := "https://bsc-dataseed1.ninicoin.io/"
-	//repo := portto.NewInMemoryStore()
 
 	dsn := "root:mypasswd@tcp(127.0.0.1:3306)/bsc?charset=utf8mb4&parseTime=True&loc=Local"
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	//db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-	//	Logger: logger.Default.LogMode(logger.Silent),
-	//})
 	if err != nil {
 		log.Fatal("failed to connect to db, ", err)
 	}
@@ -80,7 +76,7 @@ func main() {
 			cancel()
 			i.StopWait()
 			fmt.Println("")
-			fmt.Println("Bye Bye...")
+			fmt.Println("Bye Bye")
 			os.Exit(1)
 		}
 	}

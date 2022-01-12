@@ -37,9 +37,10 @@ func NewIndexer(endpoint string, repo Repository) (*Indexer, error) {
 		endpoint:  endpoint,
 		ethClient: c,
 		repo:      repo,
-		jobs:      make(chan uint64, 10),
-		errors:    make(chan error),
-		wg:        &sync.WaitGroup{},
+		//todo: should we use buffered channel here?
+		jobs:   make(chan uint64, 10),
+		errors: make(chan error),
+		wg:     &sync.WaitGroup{},
 	}, nil
 }
 
