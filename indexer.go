@@ -97,16 +97,22 @@ func (idx *Indexer) Worker(id int, endpoint string) {
 	}
 
 	for number := range idx.jobs {
-		block, err := client.GetBlockByNumber(context.TODO(), number)
+		blockRaw, err := client.GetBlockByNumber(context.TODO(), number)
 		if err != nil {
 			idx.errors <- fmt.Errorf("failed to get block, %v", err)
 		}
 
-		_ = idx.repo.StoreBlock(block)
+		blockModel := &Block{
+			Number:     blockRaw.NumberU64(),
+			Hash:       blockRaw.Hash().String(),
+			Time:       blockRaw.Time(),
+			ParentHash: blockRaw.ParentHash().String(),
+		}
+
+		_ = idx.repo.StoreBlock(blockModel)
 	}
 }
 
 func (idx Indexer) GetNewBlocks(limit int) ([]*Block, error) {
-
 	return idx.repo.GetNewBlocks(limit)
 }
