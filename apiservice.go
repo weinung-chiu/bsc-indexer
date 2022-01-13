@@ -19,9 +19,9 @@ type APIService struct {
 
 func (s APIService) ListenAndServe(addr string) {
 	r := gin.Default()
-	r.GET("/block", s.blockHandler)
 	r.GET("/blocks", s.blocksHandler)
-	r.GET("/transaction", s.transactionHandler)
+	r.GET("/blocks/:id", s.blockHandler)
+	r.GET("/transaction/:hash", s.transactionHandler)
 	err := r.Run(addr)
 	if err != nil {
 		log.Fatal("failed to run http server, ", err)
@@ -29,7 +29,7 @@ func (s APIService) ListenAndServe(addr string) {
 }
 
 func (s APIService) blockHandler(c *gin.Context) {
-	idRaw := c.Query("id")
+	idRaw := c.Param("id")
 
 	id, err := strconv.Atoi(idRaw)
 	if err != nil || id < 0 {
@@ -76,7 +76,7 @@ func (s APIService) blocksHandler(c *gin.Context) {
 
 func (s APIService) transactionHandler(c *gin.Context) {
 	// todo: valid hash
-	hash := c.Query("hash")
+	hash := c.Param("hash")
 
 	tx, err := s.indexer.GetTransaction(hash)
 	if err != nil {
