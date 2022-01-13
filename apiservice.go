@@ -39,7 +39,7 @@ func (s APIService) blockHandler(c *gin.Context) {
 		return
 	}
 
-	block, err := s.indexer.GetBlockWithTx(uint64(id))
+	block, err := s.indexer.GetBlock(uint64(id))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": fmt.Sprintf("error: %v", err),

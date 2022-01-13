@@ -110,15 +110,6 @@ func (idx *Indexer) GetBlock(number uint64) (*Block, error) {
 	return block, nil
 }
 
-func (idx *Indexer) GetBlockWithTx(number uint64) (*Block, error) {
-	block, err := idx.repo.GetBlockWithTx(number)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get block from repo, %v", err)
-	}
-
-	return block, nil
-}
-
 func (idx *Indexer) Worker(ctx context.Context, id int, endpoint string) {
 	defer idx.wg.Done()
 	client, err := NewClient(endpoint)
@@ -139,25 +130,20 @@ func (idx *Indexer) Worker(ctx context.Context, id int, endpoint string) {
 				idx.errors <- fmt.Errorf("failed to get block, %v", err)
 			}
 
+			hashes := make([]string, len(blockRaw.Transactions()))
+			for i, transaction := range blockRaw.Transactions() {
+				hashes[i] = transaction.Hash().String()
+			}
 			blockModel := &Block{
-				Number:     blockRaw.NumberU64(),
-				Hash:       blockRaw.Hash().String(),
-				Time:       blockRaw.Time(),
-				ParentHash: blockRaw.ParentHash().String(),
+				Number:       blockRaw.NumberU64(),
+				Hash:         blockRaw.Hash().String(),
+				Time:         blockRaw.Time(),
+				ParentHash:   blockRaw.ParentHash().String(),
+				Transactions: hashes,
 			}
 
 			_ = idx.repo.CreateBlock(blockModel)
 
-			txsRaw := blockRaw.Transactions()
-			var txs []*Transaction
-			for _, transaction := range txsRaw {
-				txs = append(txs, &Transaction{
-					Hash:      transaction.Hash().String(),
-					BlockHash: blockRaw.Hash().String(),
-				})
-			}
-
-			err = idx.repo.CreateTransactions(txs)
 			if err != nil {
 				log.Printf("[DEV] create transactions error, %v", err)
 				return
