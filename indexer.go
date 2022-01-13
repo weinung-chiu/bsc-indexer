@@ -135,7 +135,7 @@ func (idx *Indexer) Worker(ctx context.Context, id int, endpoint string) {
 				ParentHash: blockRaw.ParentHash().String(),
 			}
 
-			_ = idx.repo.StoreBlock(blockModel)
+			_ = idx.repo.CreateBlock(blockModel)
 		case <-ctx.Done():
 			log.Printf("receive cancel singal, stop worker %d", id)
 			return

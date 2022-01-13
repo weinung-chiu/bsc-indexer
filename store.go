@@ -8,7 +8,7 @@ import (
 )
 
 type Repository interface {
-	StoreBlock(*Block) error
+	CreateBlock(*Block) error
 	GetBlock(number uint64) (*Block, error)
 	GetLatestNumber() (uint64, error)
 	GetNewBlocks(limit int) ([]*Block, error)
@@ -40,7 +40,7 @@ func (s SQLStore) GetNewBlocks(limit int) ([]*Block, error) {
 	return blocks, nil
 }
 
-func (s SQLStore) StoreBlock(b *Block) error {
+func (s SQLStore) CreateBlock(b *Block) error {
 	result := s.db.Create(b)
 	if result.Error != nil {
 		return fmt.Errorf("failed to create MySQL record")
