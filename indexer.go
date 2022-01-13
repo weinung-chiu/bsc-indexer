@@ -108,6 +108,15 @@ func (idx *Indexer) GetBlock(number uint64) (*Block, error) {
 	return block, nil
 }
 
+func (idx *Indexer) GetBlockWithTx(number uint64) (*Block, error) {
+	block, err := idx.repo.GetBlockWithTx(number)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get block from repo, %v", err)
+	}
+
+	return block, nil
+}
+
 func (idx *Indexer) Worker(ctx context.Context, id int, endpoint string) {
 	defer idx.wg.Done()
 	client, err := NewClient(endpoint)
@@ -136,6 +145,21 @@ func (idx *Indexer) Worker(ctx context.Context, id int, endpoint string) {
 			}
 
 			_ = idx.repo.CreateBlock(blockModel)
+
+			txsRaw := blockRaw.Transactions()
+			var txs []*Transaction
+			for _, transaction := range txsRaw {
+				txs = append(txs, &Transaction{
+					Hash:      transaction.Hash().String(),
+					BlockHash: blockRaw.Hash().String(),
+				})
+			}
+
+			err = idx.repo.CreateTransactions(txs)
+			if err != nil {
+				log.Printf("[DEV] create transactions error, %v", err)
+				return
+			}
 		case <-ctx.Done():
 			log.Printf("receive cancel singal, stop worker %d", id)
 			return
