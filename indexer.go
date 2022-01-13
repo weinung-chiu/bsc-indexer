@@ -85,7 +85,7 @@ func (idx *Indexer) addNewBlockToJobQueue(ctx context.Context) {
 	if latestInDB == 0 {
 		from = latestInChain - IndexLimit
 	} else {
-		from = latestInDB
+		from = latestInDB + 1
 	}
 
 	log.Printf("adding new jobs to queue : from %d to %d\n", from, latestInChain)
