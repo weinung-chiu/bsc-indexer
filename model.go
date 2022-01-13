@@ -9,12 +9,12 @@ type Block struct {
 }
 
 type Transaction struct {
-	Hash      string
-	From      string `gorm:"column:from_addr"`
-	To        string `gorm:"column:to_addr"`
-	Nonce     uint64
-	Data      string
-	Value     uint64
-	Logs      string
-	BlockHash string
+	Hash      string `json:"tx_hash" gorm:"primaryKey"`
+	From      string `json:"from" gorm:"column:from_addr"`
+	To        string `json:"to" gorm:"column:to_addr"`
+	Nonce     uint64 `json:"nonce"`
+	Data      string `json:"data"`
+	Value     uint64 `json:"value"`
+	Logs      string `json:"logs"`
+	BlockHash string `json:"-"`
 }

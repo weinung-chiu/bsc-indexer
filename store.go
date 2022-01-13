@@ -11,6 +11,7 @@ type Repository interface {
 	CreateTransactions([]*Transaction) error
 	GetBlock(number uint64) (*Block, error)
 	GetBlockWithTx(number uint64) (*Block, error)
+	FindTransaction(hash string) (*Transaction, error)
 	GetLatestNumber() (uint64, error)
 	GetNewBlocks(limit int) ([]*Block, error)
 }
@@ -23,6 +24,21 @@ func NewSQLStore(db *gorm.DB) *SQLStore {
 	return &SQLStore{
 		db: db,
 	}
+}
+
+func (s SQLStore) FindTransaction(hash string) (*Transaction, error) {
+	var tx = &Transaction{}
+	result := s.db.Where("hash = ?", hash).First(tx)
+
+	if result.Error == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
+
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to get transaction, %v", result.Error)
+	}
+
+	return tx, nil
 }
 
 func (s SQLStore) CreateTransactions(transactions []*Transaction) error {

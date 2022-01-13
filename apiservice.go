@@ -21,6 +21,7 @@ func (s APIService) ListenAndServe(addr string) {
 	r := gin.Default()
 	r.GET("/block", s.blockHandler)
 	r.GET("/blocks", s.blocksHandler)
+	r.GET("/transaction", s.transactionHandler)
 	err := r.Run(addr)
 	if err != nil {
 		log.Fatal("failed to run http server, ", err)
@@ -71,4 +72,26 @@ func (s APIService) blocksHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"blocks": blocks,
 	})
+}
+
+func (s APIService) transactionHandler(c *gin.Context) {
+	// todo: valid hash
+	hash := c.Query("hash")
+
+	tx, err := s.indexer.GetTransaction(hash)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": fmt.Sprintf("error: %v", err),
+		})
+		return
+	}
+
+	if tx == nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "transaction not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, tx)
 }

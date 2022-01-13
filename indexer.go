@@ -175,3 +175,43 @@ func (idx *Indexer) StopWait() {
 func (idx Indexer) GetNewBlocks(limit int) ([]*Block, error) {
 	return idx.repo.GetNewBlocks(limit)
 }
+
+func (idx *Indexer) GetTransaction(hash string) (*Transaction, error) {
+	tx, err := idx.repo.FindTransaction(hash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to FindTransaction, %v", err)
+	}
+
+	if tx == nil {
+		tx, err := idx.ethClient.GetTransactionByHash(context.TODO(), hash)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get transaction from chain, %v", err)
+		}
+
+		txReceipt, err := idx.ethClient.GetTransactionReceipt(context.TODO(), hash)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get transaction receipt from chain, %v", err)
+		}
+
+		for _, l := range txReceipt.Logs {
+			log.Printf("%#v\n", l)
+		}
+
+		t := &Transaction{
+			Hash:      hash,
+			From:      "DUMMY FROM", //todo: implement this
+			To:        tx.To().String(),
+			Nonce:     tx.Nonce(),
+			Data:      string(tx.Data()), // todo: should store origin data like 0x0123abcd...
+			Value:     tx.Value().Uint64(),
+			Logs:      "DUMMY LOGS",
+			BlockHash: txReceipt.BlockHash.String(),
+		}
+
+		// store to repo
+
+		return t, nil
+	}
+
+	return tx, nil
+}

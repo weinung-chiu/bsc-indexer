@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -32,4 +33,14 @@ func (c *Client) GetBlockNumber(ctx context.Context) (uint64, error) {
 
 func (c *Client) GetBlockByNumber(ctx context.Context, number uint64) (*types.Block, error) {
 	return c.EthClient.BlockByNumber(ctx, big.NewInt(int64(number)))
+}
+
+func (c *Client) GetTransactionByHash(ctx context.Context, hash string) (*types.Transaction, error) {
+	tx, _, err := c.EthClient.TransactionByHash(ctx, common.HexToHash(hash))
+
+	return tx, err
+}
+
+func (c *Client) GetTransactionReceipt(ctx context.Context, hash string) (*types.Receipt, error) {
+	return c.EthClient.TransactionReceipt(ctx, common.HexToHash(hash))
 }
