@@ -27,8 +27,8 @@ const MaxWorker = 3
 // Interval represent add new block to fetch queue (in second)
 const Interval = 10
 
-// MinimalBlockNumber when crawl
-const MinimalBlockNumber = 14274321
+// IndexLimit limits number of block to index when db empty, to avoid fetch whole chain
+const IndexLimit = 1000
 
 func NewIndexer(endpoint string, repo Repository) (*Indexer, error) {
 	c, err := NewClient(endpoint)
@@ -82,10 +82,10 @@ func (idx *Indexer) addNewBlockToJobQueue(ctx context.Context) {
 	}
 
 	var from uint64
-	if latestInDB > MinimalBlockNumber {
-		from = latestInDB + 1
+	if latestInDB == 0 {
+		from = latestInChain - IndexLimit
 	} else {
-		from = MinimalBlockNumber + 1
+		from = latestInDB
 	}
 
 	log.Printf("adding new jobs to queue : from %d to %d\n", from, latestInChain)
