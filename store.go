@@ -2,7 +2,6 @@ package portto
 
 import (
 	"fmt"
-	"log"
 
 	"gorm.io/gorm"
 )
@@ -71,7 +70,7 @@ func (s SQLStore) GetNewBlocks(limit int) ([]*Block, error) {
 	}
 
 	if result.Error != nil {
-		log.Fatal("failed to get new blocks, ", result.Error)
+		return nil, fmt.Errorf("failed to get new blocks, %v", result.Error)
 	}
 
 	return blocks, nil
