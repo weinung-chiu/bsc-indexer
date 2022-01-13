@@ -9,12 +9,17 @@ type Block struct {
 }
 
 type Transaction struct {
-	Hash      string `json:"tx_hash" gorm:"primaryKey"`
-	From      string `json:"from" gorm:"column:from_addr"`
-	To        string `json:"to" gorm:"column:to_addr"`
-	Nonce     uint64 `json:"nonce"`
-	Data      string `json:"data"`
-	Value     uint64 `json:"value"`
-	Logs      string `json:"logs"`
-	BlockHash string `json:"-"`
+	Hash      string            `json:"tx_hash" gorm:"primaryKey"`
+	From      string            `json:"from" gorm:"column:from_addr"`
+	To        string            `json:"to" gorm:"column:to_addr"`
+	Nonce     uint64            `json:"nonce"`
+	Data      string            `json:"data"`
+	Value     uint64            `json:"value"`
+	Logs      []*TransactionLog `json:"logs" gorm:"-"` //todo make logs store to repo
+	BlockHash string            `json:"-"`
+}
+
+type TransactionLog struct {
+	Index uint64 `json:"index"`
+	Data  string `json:"data"`
 }

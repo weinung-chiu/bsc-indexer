@@ -6,6 +6,8 @@ import (
 	"log"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type Indexer struct {
@@ -193,18 +195,22 @@ func (idx *Indexer) GetTransaction(hash string) (*Transaction, error) {
 			return nil, fmt.Errorf("failed to get transaction receipt from chain, %v", err)
 		}
 
-		for _, l := range txReceipt.Logs {
-			log.Printf("%#v\n", l)
+		logs := make([]*TransactionLog, len(txReceipt.Logs))
+		for i, l := range txReceipt.Logs {
+			logs[i] = &TransactionLog{
+				Index: uint64(l.Index),
+				Data:  common.BytesToHash(l.Data).String(),
+			}
 		}
 
 		t := &Transaction{
 			Hash:      hash,
-			From:      "DUMMY FROM", //todo: implement this
-			To:        tx.To().String(),
-			Nonce:     tx.Nonce(),
-			Data:      string(tx.Data()), // todo: should store origin data like 0x0123abcd...
-			Value:     tx.Value().Uint64(),
-			Logs:      "DUMMY LOGS",
+			From:      tx.From,
+			To:        tx.To,
+			Nonce:     tx.Nonce,
+			Data:      tx.Data,
+			Value:     tx.Value,
+			Logs:      logs,
 			BlockHash: txReceipt.BlockHash.String(),
 		}
 
