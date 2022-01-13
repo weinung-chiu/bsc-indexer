@@ -25,22 +25,20 @@ type Transaction struct {
 	BlockHash string `json:"-"`
 }
 
+type Logs []TransactionLog
 type TransactionLog struct {
 	Index uint64 `json:"index"`
 	Data  string `json:"data"`
 }
 
-type Logs []TransactionLog
-
-func (t *Logs) Scan(src interface{}) error {
+func (t Logs) Scan(src interface{}) error {
 	bytes, ok := src.([]byte)
 	if !ok {
 		return fmt.Errorf("unexpected type for %v", bytes)
 	}
-
 	return json.Unmarshal(bytes, &t)
 }
 
-func (t *Logs) Value() (driver.Value, error) {
+func (t Logs) Value() (driver.Value, error) {
 	return json.Marshal(t)
 }
