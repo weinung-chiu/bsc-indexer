@@ -102,7 +102,7 @@ func (idx *Indexer) addNewBlockToJobQueue(ctx context.Context) {
 }
 
 func (idx *Indexer) GetBlock(number uint64) (*Block, error) {
-	block, err := idx.repo.GetBlock(number)
+	block, err := idx.repo.FindBlock(number)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get block from repo, %v", err)
 	}
@@ -186,9 +186,9 @@ func (idx *Indexer) GetTransaction(hash string) (*Transaction, error) {
 			return nil, fmt.Errorf("failed to get transaction receipt from chain, %v", err)
 		}
 
-		logs := make([]TransactionLog, len(txReceipt.Logs))
+		logs := make([]Log, len(txReceipt.Logs))
 		for i, l := range txReceipt.Logs {
-			logs[i] = TransactionLog{
+			logs[i] = Log{
 				Index: uint64(l.Index),
 				Data:  common.BytesToHash(l.Data).String(),
 			}
