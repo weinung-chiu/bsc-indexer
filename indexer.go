@@ -161,7 +161,12 @@ func (idx *Indexer) StopWait() {
 }
 
 func (idx Indexer) GetNewBlocks(limit int) ([]*Block, error) {
-	return idx.repo.GetNewBlocks(limit)
+	blocks, err := idx.repo.GetNewBlocks(limit)
+	for i := range blocks {
+		blocks[i].Transactions = nil
+	}
+
+	return blocks, err
 }
 
 func (idx *Indexer) GetTransaction(hash string) (*Transaction, error) {

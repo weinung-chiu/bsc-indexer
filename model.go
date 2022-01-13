@@ -11,7 +11,7 @@ type Block struct {
 	Hash         string            `json:"block_hash"`
 	Time         uint64            `json:"block_time"`
 	ParentHash   string            `json:"parent_hash"`
-	Transactions TransactionHashes `json:"transactions"`
+	Transactions TransactionHashes `json:"transactions,omitempty"`
 }
 
 type TransactionHashes []string
