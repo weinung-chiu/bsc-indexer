@@ -8,6 +8,7 @@ import (
 
 type Repository interface {
 	CreateBlock(*Block) error
+	CreateTransaction(*Transaction) error
 	CreateTransactions([]*Transaction) error
 	GetBlock(number uint64) (*Block, error)
 	GetBlockWithTx(number uint64) (*Block, error)
@@ -49,6 +50,10 @@ func (s SQLStore) CreateTransactions(transactions []*Transaction) error {
 	}
 
 	return nil
+}
+
+func (s SQLStore) CreateTransaction(transaction *Transaction) error {
+	return s.db.Create(transaction).Error
 }
 
 func (s SQLStore) GetBlockWithTx(number uint64) (*Block, error) {

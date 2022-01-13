@@ -195,9 +195,9 @@ func (idx *Indexer) GetTransaction(hash string) (*Transaction, error) {
 			return nil, fmt.Errorf("failed to get transaction receipt from chain, %v", err)
 		}
 
-		logs := make([]*TransactionLog, len(txReceipt.Logs))
+		logs := make([]TransactionLog, len(txReceipt.Logs))
 		for i, l := range txReceipt.Logs {
-			logs[i] = &TransactionLog{
+			logs[i] = TransactionLog{
 				Index: uint64(l.Index),
 				Data:  common.BytesToHash(l.Data).String(),
 			}
@@ -214,7 +214,10 @@ func (idx *Indexer) GetTransaction(hash string) (*Transaction, error) {
 			BlockHash: txReceipt.BlockHash.String(),
 		}
 
-		// store to repo
+		err = idx.repo.CreateTransaction(t)
+		if err != nil {
+			return nil, fmt.Errorf("failed to store transaction to repo, %v", err)
+		}
 
 		return t, nil
 	}
