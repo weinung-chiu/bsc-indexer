@@ -46,7 +46,7 @@ type TransactionLog struct {
 	Data  string `json:"data"`
 }
 
-func (t Logs) Scan(src interface{}) error {
+func (t *Logs) Scan(src interface{}) error {
 	bytes, ok := src.([]byte)
 	if !ok {
 		return fmt.Errorf("unexpected type for %v", bytes)
