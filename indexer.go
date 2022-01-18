@@ -30,6 +30,10 @@ const Interval = 10
 // IndexLimit limits range to index when no block record in db, to avoid fetch whole chain
 const IndexLimit = 100
 
+const ConfirmationNeeded = 10
+
+const SecondPerBlock = 3
+
 func NewIndexer(endpoint string, repo Repository) (*Indexer, error) {
 	c, err := NewClient(endpoint)
 	if err != nil {
@@ -49,8 +53,11 @@ func NewIndexer(endpoint string, repo Repository) (*Indexer, error) {
 func (idx *Indexer) Run(ctx context.Context) {
 	idx.wg.Add(MaxWorker)
 	for i := 0; i < MaxWorker; i++ {
-		go idx.Worker(ctx, i, idx.endpoint)
+		go idx.FastWorker(ctx, i, idx.endpoint)
 	}
+
+	idx.wg.Add(1)
+	go idx.ConfirmWorker(ctx)
 
 	for {
 		select {
@@ -110,7 +117,7 @@ func (idx *Indexer) GetBlock(number uint64) (*Block, error) {
 	return block, nil
 }
 
-func (idx *Indexer) Worker(ctx context.Context, id int, endpoint string) {
+func (idx *Indexer) FastWorker(ctx context.Context, id int, endpoint string) {
 	defer idx.wg.Done()
 	client, err := NewClient(endpoint)
 	if err != nil {
@@ -149,7 +156,40 @@ func (idx *Indexer) Worker(ctx context.Context, id int, endpoint string) {
 				return
 			}
 		case <-ctx.Done():
-			log.Printf("receive cancel singal, stop worker %d", id)
+			log.Printf("receive cancel singal, stop FastWorker %d", id)
+			return
+		}
+	}
+}
+
+func (idx *Indexer) ConfirmWorker(ctx context.Context) {
+	defer idx.wg.Done()
+	client, err := NewClient(idx.endpoint)
+	if err != nil {
+		idx.errors <- fmt.Errorf("failed to create Client in ConfirmWorker, %v", err)
+		return
+	}
+	_ = client
+
+	for {
+		select {
+		case <-time.Tick(ConfirmationNeeded * SecondPerBlock * time.Second):
+			log.Printf("checking if there is block need to update...\n")
+			blocks, err := idx.repo.GetUnconfirmedBlocks()
+			if err != nil {
+				idx.errors <- fmt.Errorf("failed to get unconfirmed blocks ConfirmWorker, %v", err)
+				return
+			}
+
+			// todo : validate before confirm
+			err = idx.repo.ConfirmBlocks(blocks)
+			if err != nil {
+				idx.errors <- fmt.Errorf("[ConfirmWorker] failed to confirm blocks, %v", err)
+				return
+			}
+
+		case <-ctx.Done():
+			log.Printf("receive cancel singal, stop ConfirmWorker")
 			return
 		}
 	}

@@ -12,6 +12,7 @@ type Block struct {
 	Time         uint64   `json:"block_time"`
 	ParentHash   string   `json:"parent_hash"`
 	Transactions TxHashes `json:"transactions,omitempty"`
+	Confirmed    bool     `json:"confirmed"`
 }
 
 type TxHashes []string

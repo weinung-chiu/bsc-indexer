@@ -10,6 +10,9 @@ type Repository interface {
 	GetLatestNumber() (uint64, error)
 	GetNewBlocks(limit int) ([]*Block, error)
 
+	GetUnconfirmedBlocks() ([]*Block, error)
+	ConfirmBlocks([]*Block) error
+
 	CreateBlock(*Block) error
 	FindBlock(number uint64) (*Block, error)
 
@@ -56,6 +59,29 @@ func (s SQLStore) GetNewBlocks(limit int) ([]*Block, error) {
 	}
 
 	return blocks, nil
+}
+
+func (s SQLStore) GetUnconfirmedBlocks() ([]*Block, error) {
+	var blocks []*Block
+	//result := s.db.Where("confirmed = ?", false).Order("number asc").Find(&blocks)
+	result := s.db.Where(&Block{Confirmed: false}).Order("number asc").Find(&blocks)
+
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to get unconfirmed blocks, %v", result.Error)
+	}
+
+	return blocks, nil
+}
+
+func (s SQLStore) ConfirmBlocks(blocks []*Block) error {
+	IDs := make([]uint64, len(blocks))
+	for i, block := range blocks {
+		IDs[i] = block.Number
+	}
+
+	result := s.db.Model(&Block{}).Where("number IN ?", IDs).Select("confirmed").Updates(Block{Confirmed: true})
+
+	return result.Error
 }
 
 func (s SQLStore) CreateBlock(b *Block) error {
