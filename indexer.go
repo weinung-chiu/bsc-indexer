@@ -13,11 +13,11 @@ import (
 type Indexer struct {
 	endpoint  string
 	ethClient *Client
+	repo      Repository
 
-	repo Repository
-
-	jobs   chan uint64
-	errors chan error
+	jobs          chan uint64
+	errors        chan error
+	currentLatest uint64
 
 	wg *sync.WaitGroup
 }
@@ -81,6 +81,7 @@ func (idx *Indexer) addNewBlockToJobQueue(ctx context.Context) {
 		idx.errors <- fmt.Errorf("failed to get latest number on chain, %v", err)
 		return
 	}
+	idx.currentLatest = latestInChain
 
 	latestInDB, err := idx.repo.GetLatestNumber()
 	if err != nil {
@@ -152,7 +153,7 @@ func (idx *Indexer) FastWorker(ctx context.Context, id int, endpoint string) {
 			_ = idx.repo.CreateBlock(blockModel)
 
 			if err != nil {
-				log.Printf("[DEV] create transactions error, %v", err)
+				log.Printf("create block error, %v", err)
 				return
 			}
 		case <-ctx.Done():
@@ -166,7 +167,7 @@ func (idx *Indexer) ConfirmWorker(ctx context.Context) {
 	defer idx.wg.Done()
 	client, err := NewClient(idx.endpoint)
 	if err != nil {
-		idx.errors <- fmt.Errorf("failed to create Client in ConfirmWorker, %v", err)
+		idx.errors <- fmt.Errorf("[ConfirmWorker] failed to create Client in ConfirmWorker, %v", err)
 		return
 	}
 	_ = client
@@ -174,15 +175,36 @@ func (idx *Indexer) ConfirmWorker(ctx context.Context) {
 	for {
 		select {
 		case <-time.Tick(ConfirmationNeeded * SecondPerBlock * time.Second):
-			log.Printf("checking if there is block need to update...\n")
 			blocks, err := idx.repo.GetUnconfirmedBlocks()
 			if err != nil {
 				idx.errors <- fmt.Errorf("failed to get unconfirmed blocks ConfirmWorker, %v", err)
 				return
 			}
 
-			// todo : validate before confirm
-			err = idx.repo.ConfirmBlocks(blocks)
+			if len(blocks) < 2 {
+				log.Printf("[ConfirmWorker] no block to confirm\n")
+				continue
+			}
+
+			to := int(idx.currentLatest - ConfirmationNeeded)
+			log.Printf("[ConfirmWorker] checking block from %d to %d\n", int(blocks[0].Number), to)
+
+			var validatedBlocks []*Block
+			for i := 0; i < len(blocks)-1; i++ {
+				if blocks[i].Number >= uint64(to) {
+					break
+				}
+
+				if blocks[i].Hash != blocks[i+1].ParentHash {
+					log.Printf("[ConfirmWorker] todo: update rest blocks from start from i+1\n")
+					break
+				}
+
+				validatedBlocks = append(validatedBlocks, blocks[i])
+			}
+			log.Printf("[ConfirmWorker] %d blocks validated, update repo\n", len(validatedBlocks))
+
+			err = idx.repo.ConfirmBlocks(validatedBlocks)
 			if err != nil {
 				idx.errors <- fmt.Errorf("[ConfirmWorker] failed to confirm blocks, %v", err)
 				return

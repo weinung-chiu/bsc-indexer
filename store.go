@@ -63,8 +63,7 @@ func (s SQLStore) GetNewBlocks(limit int) ([]*Block, error) {
 
 func (s SQLStore) GetUnconfirmedBlocks() ([]*Block, error) {
 	var blocks []*Block
-	//result := s.db.Where("confirmed = ?", false).Order("number asc").Find(&blocks)
-	result := s.db.Where(&Block{Confirmed: false}).Order("number asc").Find(&blocks)
+	result := s.db.Select("number", "hash", "parent_hash", "confirmed").Where("confirmed = ?", false).Order("number asc").Find(&blocks)
 
 	if result.Error != nil {
 		return nil, fmt.Errorf("failed to get unconfirmed blocks, %v", result.Error)
