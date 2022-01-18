@@ -27,8 +27,8 @@ const MaxWorker = 3
 // Interval represent add new block to fetch queue (in second)
 const Interval = 10
 
-// IndexLimit limits number of block to index when db empty, to avoid fetch whole chain
-const IndexLimit = 1000
+// IndexLimit limits range to index when no block record in db, to avoid fetch whole chain
+const IndexLimit = 100
 
 func NewIndexer(endpoint string, repo Repository) (*Indexer, error) {
 	c, err := NewClient(endpoint)
@@ -40,7 +40,7 @@ func NewIndexer(endpoint string, repo Repository) (*Indexer, error) {
 		ethClient: c,
 		repo:      repo,
 		//todo: should we use buffered channel here?
-		jobs:   make(chan uint64, 10),
+		jobs:   make(chan uint64, 1),
 		errors: make(chan error),
 		wg:     &sync.WaitGroup{},
 	}, nil
@@ -56,7 +56,7 @@ func (idx *Indexer) Run(ctx context.Context) {
 		select {
 		case <-time.Tick(Interval * time.Second):
 			if len(idx.jobs) > 0 {
-				log.Printf("got %d job(s) to do, new job skiped", len(idx.jobs))
+				log.Printf("still got job to do, no new job(s) added")
 			} else {
 				go idx.addNewBlockToJobQueue(ctx)
 			}
