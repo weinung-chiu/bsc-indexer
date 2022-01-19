@@ -22,6 +22,13 @@ worker 的數量會影響資源的使用，也要考量 endpoint 的 rate limit 
 
 另外再起 apiservice ，負責處理 RESTful API 的需求
 
+## indexer
+在背景執行，持續將鏈上的資料取回，分成 fetch worker 及 confirm worker
+
+其中 fetch worker 被設計成會單純的將 block 掃進 db
+
+而 confirm worker 會檢查已經取得的區塊，看是否有需要替換成穩定區塊，如有則進行替換。
+
 
 # 執行
 
