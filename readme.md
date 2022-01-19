@@ -32,4 +32,19 @@ worker 的數量會影響資源的使用，也要考量 endpoint 的 rate limit 
 
 # 執行
 
-WIP
+MySQL db
+```shell
+docker compose up
+```
+
+
+db migrate
+```shell
+go run cmd/db_migrate/main.go
+```
+
+
+db migrate
+```shell
+go run cmd/dev/main.go
+```
