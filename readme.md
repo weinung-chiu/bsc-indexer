@@ -50,3 +50,12 @@ indexer and RESTful API Service
 ```shell
 go run cmd/dev/main.go
 ```
+
+# APIs
+```shell
+GET 127.0.0.1/blocks
+
+GET 127.0.0.1/blocks/:id
+
+GET 127.0.0.1/transaction/:hash
+```
