@@ -23,7 +23,7 @@ type Indexer struct {
 }
 
 const (
-	ConfirmationNeeded = 10
+	ConfirmationNeeded = 20
 
 	SecondPerBlock = 3
 

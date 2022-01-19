@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	rpcEndpoint := "https://bsc-dataseed1.ninicoin.io/"
+	rpcEndpoint := "https://data-seed-prebsc-2-s3.binance.org:8545/"
 
 	dsn := "root:mypasswd@tcp(127.0.0.1:3306)/bsc?charset=utf8mb4&parseTime=True&loc=Local"
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
