@@ -22,17 +22,19 @@ type Indexer struct {
 	wg *sync.WaitGroup
 }
 
-const MaxWorker = 3
+const (
+	ConfirmationNeeded = 10
 
-// Interval represent add new block to fetch queue (in second)
-const Interval = 10
+	SecondPerBlock = 3
 
-// IndexLimit limits range to index when no block record in db, to avoid fetch whole chain
-const IndexLimit = 100
+	// IndexLimit limits range to index when no block record in db, to avoid fetch whole chain
+	IndexLimit = 100
 
-const ConfirmationNeeded = 10
+	// Interval represent add new block to fetch queue (in second)
+	Interval = 10
 
-const SecondPerBlock = 3
+	MaxWorker = 3
+)
 
 func NewIndexer(endpoint string, repo Repository) (*Indexer, error) {
 	c, err := NewClient(endpoint)
@@ -109,20 +111,11 @@ func (idx *Indexer) addNewBlockToJobQueue(ctx context.Context) {
 	}
 }
 
-func (idx *Indexer) GetBlock(number uint64) (*Block, error) {
-	block, err := idx.repo.FindBlock(number)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get block from repo, %v", err)
-	}
-
-	return block, nil
-}
-
 func (idx *Indexer) FastWorker(ctx context.Context, id int, endpoint string) {
 	defer idx.wg.Done()
 	client, err := NewClient(endpoint)
 	if err != nil {
-		idx.errors <- fmt.Errorf("failed to create Client, %v", err)
+		idx.errors <- fmt.Errorf("[FastWorker] failed to create Client, %v", err)
 		return
 	}
 
@@ -130,12 +123,12 @@ func (idx *Indexer) FastWorker(ctx context.Context, id int, endpoint string) {
 		select {
 		case number, ok := <-idx.jobs:
 			if !ok {
-				log.Printf("jobs channel closed, stop worker %d", id)
+				log.Printf("[FastWorker] jobs channel closed, stop worker %d", id)
 				return
 			}
 			blockRaw, err := client.GetBlockByNumber(context.TODO(), number)
 			if err != nil {
-				idx.errors <- fmt.Errorf("failed to get block, %v", err)
+				idx.errors <- fmt.Errorf("[FastWorker] failed to get block, %v", err)
 			}
 
 			hashes := make([]string, len(blockRaw.Transactions()))
@@ -153,11 +146,11 @@ func (idx *Indexer) FastWorker(ctx context.Context, id int, endpoint string) {
 			_ = idx.repo.CreateBlock(blockModel)
 
 			if err != nil {
-				log.Printf("create block error, %v", err)
+				log.Printf("[FastWorker] create block error, %v", err)
 				return
 			}
 		case <-ctx.Done():
-			log.Printf("receive cancel singal, stop FastWorker %d", id)
+			log.Printf("[FastWorker] receive cancel singal, stop FastWorker %d", id)
 			return
 		}
 	}
@@ -222,13 +215,24 @@ func (idx *Indexer) StopWait() {
 	idx.wg.Wait()
 }
 
-func (idx Indexer) GetNewBlocks(limit int) ([]*Block, error) {
+// APIs
+
+func (idx *Indexer) GetNewBlocks(limit int) ([]*Block, error) {
 	blocks, err := idx.repo.GetNewBlocks(limit)
 	for i := range blocks {
 		blocks[i].Transactions = nil
 	}
 
 	return blocks, err
+}
+
+func (idx *Indexer) GetBlock(number uint64) (*Block, error) {
+	block, err := idx.repo.FindBlock(number)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get block from repo, %v", err)
+	}
+
+	return block, nil
 }
 
 func (idx *Indexer) GetTransaction(hash string) (*Transaction, error) {
