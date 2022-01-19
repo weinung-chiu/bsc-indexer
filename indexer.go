@@ -64,11 +64,8 @@ func (idx *Indexer) Run(ctx context.Context) {
 	for {
 		select {
 		case <-time.Tick(Interval * time.Second):
-			if len(idx.jobs) > 0 {
-				log.Printf("still got job to do, no new job(s) added")
-			} else {
-				go idx.addNewBlockToJobQueue(ctx)
-			}
+			idx.updateLatestNumber(ctx)
+			idx.makeRoutineJobs(ctx)
 		case err := <-idx.errors:
 			log.Printf("error received : %v", err)
 		case <-ctx.Done():
@@ -77,38 +74,52 @@ func (idx *Indexer) Run(ctx context.Context) {
 	}
 }
 
-func (idx *Indexer) addNewBlockToJobQueue(ctx context.Context) {
-	latestInChain, err := idx.ethClient.GetBlockNumber(context.TODO())
+func (idx *Indexer) updateLatestNumber(ctx context.Context) {
+	latest, err := idx.ethClient.GetBlockNumber(ctx)
 	if err != nil {
 		idx.errors <- fmt.Errorf("failed to get latest number on chain, %v", err)
 		return
 	}
-	idx.currentLatest = latestInChain
+	idx.currentLatest = latest
+}
 
-	latestInDB, err := idx.repo.GetLatestNumber()
+func (idx *Indexer) makeRoutineJobs(ctx context.Context) {
+	if len(idx.jobs) > 0 {
+		log.Printf("[makeRoutineJobs] still got job to do, no new job(s) added")
+		return
+	}
+
+	repoLatest, err := idx.repo.GetLatestNumber()
 	if err != nil {
 		idx.errors <- fmt.Errorf("failed to get latest number in DB, %v", err)
 		return
 	}
 
+	// for dev purpose, limit index range when repo empty
 	var from uint64
-	if latestInDB == 0 {
-		from = latestInChain - IndexLimit
+	if repoLatest == 0 {
+		from = idx.currentLatest - IndexLimit
 	} else {
-		from = latestInDB + 1
+		from = repoLatest + 1
 	}
 
-	log.Printf("adding new jobs to queue : from %d to %d\n", from, latestInChain)
-	for i := from; i <= latestInChain; i++ {
+	log.Printf("adding new jobs to queue : from %d to %d\n", from, idx.currentLatest)
+	for i := from; i <= idx.currentLatest; i++ {
 		select {
 		case <-ctx.Done():
-			log.Println("stop add new job to queue")
 			close(idx.jobs)
+			log.Println("[makeRoutineJobs] stop add new job to queue, job channel closed")
 			return
 		default:
-			idx.jobs <- i
+			idx.addJob(i)
 		}
 	}
+}
+
+func (idx *Indexer) addJob(n uint64) {
+	go func() {
+		idx.jobs <- n
+	}()
 }
 
 func (idx *Indexer) FastWorker(ctx context.Context, id int, endpoint string) {
@@ -126,34 +137,44 @@ func (idx *Indexer) FastWorker(ctx context.Context, id int, endpoint string) {
 				log.Printf("[FastWorker] jobs channel closed, stop worker %d", id)
 				return
 			}
-			blockRaw, err := client.GetBlockByNumber(context.TODO(), number)
+
+			err := idx.fetchAndStoreBlock(ctx, client, number)
 			if err != nil {
-				idx.errors <- fmt.Errorf("[FastWorker] failed to get block, %v", err)
-			}
-
-			hashes := make([]string, len(blockRaw.Transactions()))
-			for i, transaction := range blockRaw.Transactions() {
-				hashes[i] = transaction.Hash().String()
-			}
-			blockModel := &Block{
-				Number:       blockRaw.NumberU64(),
-				Hash:         blockRaw.Hash().String(),
-				Time:         blockRaw.Time(),
-				ParentHash:   blockRaw.ParentHash().String(),
-				Transactions: hashes,
-			}
-
-			_ = idx.repo.CreateBlock(blockModel)
-
-			if err != nil {
-				log.Printf("[FastWorker] create block error, %v", err)
-				return
+				idx.errors <- fmt.Errorf("[FastWorker] failed to fetch block and store, %v", err)
 			}
 		case <-ctx.Done():
 			log.Printf("[FastWorker] receive cancel singal, stop FastWorker %d", id)
 			return
 		}
 	}
+}
+
+func (idx *Indexer) fetchAndStoreBlock(ctx context.Context, client *Client, number uint64) error {
+	blockRaw, err := client.GetBlockByNumber(context.TODO(), number)
+	if err != nil {
+		return fmt.Errorf("[FastWorker] failed to get block, %v", err)
+	}
+
+	hashes := make([]string, len(blockRaw.Transactions()))
+	for i, transaction := range blockRaw.Transactions() {
+		hashes[i] = transaction.Hash().String()
+	}
+	blockModel := &Block{
+		Number:       blockRaw.NumberU64(),
+		Hash:         blockRaw.Hash().String(),
+		Time:         blockRaw.Time(),
+		ParentHash:   blockRaw.ParentHash().String(),
+		Transactions: hashes,
+	}
+
+	_ = idx.repo.CreateBlock(blockModel)
+
+	if err != nil {
+		log.Printf("[FastWorker] create block error, %v", err)
+		return err
+	}
+
+	return nil
 }
 
 func (idx *Indexer) ConfirmWorker(ctx context.Context) {
