@@ -55,11 +55,11 @@ func NewIndexer(endpoint string, repo Repository) (*Indexer, error) {
 func (idx *Indexer) Run(ctx context.Context) {
 	idx.wg.Add(MaxWorker)
 	for i := 0; i < MaxWorker; i++ {
-		go idx.FastWorker(ctx, i, idx.endpoint)
+		go idx.fetchWorker(ctx, i, idx.endpoint)
 	}
 
 	idx.wg.Add(1)
-	go idx.ConfirmWorker(ctx)
+	go idx.confirmWorker(ctx)
 
 	for {
 		select {
@@ -74,6 +74,11 @@ func (idx *Indexer) Run(ctx context.Context) {
 	}
 }
 
+func (idx *Indexer) Stop() {
+	log.Println("waiting for everything stop...")
+	idx.wg.Wait()
+}
+
 func (idx *Indexer) updateLatestNumber(ctx context.Context) {
 	latest, err := idx.ethClient.GetBlockNumber(ctx)
 	if err != nil {
@@ -85,7 +90,7 @@ func (idx *Indexer) updateLatestNumber(ctx context.Context) {
 
 func (idx *Indexer) makeRoutineJobs(ctx context.Context) {
 	if len(idx.jobs) > 0 {
-		log.Printf("[makeRoutineJobs] still got job to do, no new job(s) added")
+		log.Printf("[RoutineJobs] still got job to do, no new job(s) added")
 		return
 	}
 
@@ -103,7 +108,7 @@ func (idx *Indexer) makeRoutineJobs(ctx context.Context) {
 		from = repoLatest + 1
 	}
 
-	log.Printf("adding new jobs to queue : from %d to %d\n", from, idx.currentLatest)
+	log.Printf("[RoutineJobs] add new jobs : from %d to %d\n", from, idx.currentLatest)
 	for i := from; i <= idx.currentLatest; i++ {
 		select {
 		case <-ctx.Done():
@@ -122,37 +127,10 @@ func (idx *Indexer) addJob(n uint64) {
 	}()
 }
 
-func (idx *Indexer) FastWorker(ctx context.Context, id int, endpoint string) {
-	defer idx.wg.Done()
-	client, err := NewClient(endpoint)
-	if err != nil {
-		idx.errors <- fmt.Errorf("[FastWorker] failed to create Client, %v", err)
-		return
-	}
-
-	for {
-		select {
-		case number, ok := <-idx.jobs:
-			if !ok {
-				log.Printf("[FastWorker] jobs channel closed, stop worker %d", id)
-				return
-			}
-
-			err := idx.fetchAndStoreBlock(ctx, client, number)
-			if err != nil {
-				idx.errors <- fmt.Errorf("[FastWorker] failed to fetch block and store, %v", err)
-			}
-		case <-ctx.Done():
-			log.Printf("[FastWorker] receive cancel singal, stop FastWorker %d", id)
-			return
-		}
-	}
-}
-
 func (idx *Indexer) fetchAndStoreBlock(ctx context.Context, client *Client, number uint64) error {
 	blockRaw, err := client.GetBlockByNumber(context.TODO(), number)
 	if err != nil {
-		return fmt.Errorf("[FastWorker] failed to get block, %v", err)
+		return fmt.Errorf("failed to get block %d, %v", number, err)
 	}
 
 	hashes := make([]string, len(blockRaw.Transactions()))
@@ -170,13 +148,40 @@ func (idx *Indexer) fetchAndStoreBlock(ctx context.Context, client *Client, numb
 	err = idx.repo.CreateBlock(blockModel)
 
 	if err != nil {
-		return fmt.Errorf("[FastWorker] create block error, %v", err)
+		return fmt.Errorf("create block error, %v", err)
 	}
 
 	return nil
 }
 
-func (idx *Indexer) ConfirmWorker(ctx context.Context) {
+func (idx *Indexer) fetchWorker(ctx context.Context, id int, endpoint string) {
+	defer idx.wg.Done()
+	client, err := NewClient(endpoint)
+	if err != nil {
+		idx.errors <- fmt.Errorf("[FetchWorker] failed to create Client, %v", err)
+		return
+	}
+
+	for {
+		select {
+		case number, ok := <-idx.jobs:
+			if !ok {
+				log.Printf("[FetchWorker] jobs channel closed, stop worker %d", id)
+				return
+			}
+
+			err := idx.fetchAndStoreBlock(ctx, client, number)
+			if err != nil {
+				idx.errors <- fmt.Errorf("[FetchWorker] failed to fetch block and store, %v", err)
+			}
+		case <-ctx.Done():
+			log.Printf("[FetchWorker] receive cancel singal, stop FetchWorker %d", id)
+			return
+		}
+	}
+}
+
+func (idx *Indexer) confirmWorker(ctx context.Context) {
 	defer idx.wg.Done()
 	client, err := NewClient(idx.endpoint)
 	if err != nil {
@@ -233,11 +238,6 @@ func (idx *Indexer) ConfirmWorker(ctx context.Context) {
 			return
 		}
 	}
-}
-
-func (idx *Indexer) StopWait() {
-	log.Println("waiting for everything stop...")
-	idx.wg.Wait()
 }
 
 // APIs

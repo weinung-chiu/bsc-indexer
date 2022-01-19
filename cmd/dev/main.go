@@ -41,7 +41,7 @@ func main() {
 		select {
 		case <-done:
 			cancel()
-			i.StopWait()
+			i.Stop()
 			fmt.Println("")
 			fmt.Println("Bye Bye")
 			os.Exit(1)
