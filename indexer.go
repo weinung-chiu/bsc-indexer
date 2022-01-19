@@ -167,11 +167,10 @@ func (idx *Indexer) fetchAndStoreBlock(ctx context.Context, client *Client, numb
 		Transactions: hashes,
 	}
 
-	_ = idx.repo.CreateBlock(blockModel)
+	err = idx.repo.CreateBlock(blockModel)
 
 	if err != nil {
-		log.Printf("[FastWorker] create block error, %v", err)
-		return err
+		return fmt.Errorf("[FastWorker] create block error, %v", err)
 	}
 
 	return nil
@@ -200,17 +199,22 @@ func (idx *Indexer) ConfirmWorker(ctx context.Context) {
 				continue
 			}
 
-			to := int(idx.currentLatest - ConfirmationNeeded)
+			to := idx.currentLatest - ConfirmationNeeded
 			log.Printf("[ConfirmWorker] checking block from %d to %d\n", int(blocks[0].Number), to)
 
 			var validatedBlocks []*Block
 			for i := 0; i < len(blocks)-1; i++ {
-				if blocks[i].Number >= uint64(to) {
+				if blocks[i].Number >= to {
 					break
 				}
 
 				if blocks[i].Hash != blocks[i+1].ParentHash {
-					log.Printf("[ConfirmWorker] todo: update rest blocks from start from i+1\n")
+					log.Printf("[ConfirmWorker] parent hash not matched on block %d\n", blocks[i+1].Number)
+					log.Printf("[ConfirmWorker] re-fetch block from %d to %d\n", blocks[i+1].Number, to)
+					for j := blocks[i+1].Number; j < to; j++ {
+						idx.addJob(j)
+					}
+
 					break
 				}
 

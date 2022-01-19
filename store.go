@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Repository interface {
@@ -84,12 +85,9 @@ func (s SQLStore) ConfirmBlocks(blocks []*Block) error {
 }
 
 func (s SQLStore) CreateBlock(b *Block) error {
-	result := s.db.Create(b)
-	if result.Error != nil {
-		return fmt.Errorf("failed to create MySQL record")
-	}
-
-	return nil
+	return s.db.Clauses(clause.OnConflict{
+		UpdateAll: true,
+	}).Create(b).Error
 }
 
 func (s SQLStore) FindBlock(number uint64) (*Block, error) {
