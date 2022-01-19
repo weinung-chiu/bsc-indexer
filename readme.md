@@ -29,6 +29,8 @@ worker 的數量會影響資源的使用，也要考量 endpoint 的 rate limit 
 
 而 confirm worker 會檢查已經取得的區塊，看是否有需要替換成穩定區塊，如有則進行替換。
 
+在開發時，避免從空 db 開始執行時需要花費很久才能取到最新block的狀況，indexer 會從鏈的中間開始掃到最新 block (而非從0開始)，
+這個範圍可以透過 IndexLimit 進行調整。
 
 # 執行
 
@@ -44,7 +46,7 @@ go run cmd/db_migrate/main.go
 ```
 
 
-db migrate
+indexer and RESTful API Service
 ```shell
 go run cmd/dev/main.go
 ```

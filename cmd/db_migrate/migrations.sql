@@ -25,7 +25,7 @@ CREATE TABLE `transactions` (
                                 `from_addr` varchar(42) COLLATE utf8mb4_unicode_ci NOT NULL,
                                 `to_addr` varchar(42) COLLATE utf8mb4_unicode_ci NOT NULL,
                                 `nonce` mediumint(8) UNSIGNED NOT NULL,
-                                `data` varchar(1024) COLLATE utf8mb4_unicode_ci NOT NULL,
+                                `data` text COLLATE utf8mb4_unicode_ci NOT NULL,
                                 `value` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
                                 `logs` text COLLATE utf8mb4_unicode_ci NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

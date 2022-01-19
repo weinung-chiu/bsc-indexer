@@ -26,12 +26,11 @@ func main() {
 	if err != nil {
 		log.Fatal("failed to make new indexer, ", err)
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	go i.Run(ctx)
 
 	apiService := portto.NewAPIService(i)
 	go apiService.ListenAndServe(":80")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go i.Run(ctx)
 
 	fmt.Println("Press Ctrl+C to interrupt...")
 	done := make(chan os.Signal, 1)

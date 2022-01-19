@@ -27,13 +27,12 @@ const (
 
 	SecondPerBlock = 3
 
+	FetchInterval = 10
+
+	NumberOfWorker = 3
+
 	// IndexLimit limits range to index when no block record in db, to avoid fetch whole chain
 	IndexLimit = 100
-
-	// Interval represent add new block to fetch queue (in second)
-	Interval = 10
-
-	MaxWorker = 3
 )
 
 func NewIndexer(endpoint string, repo Repository) (*Indexer, error) {
@@ -53,8 +52,8 @@ func NewIndexer(endpoint string, repo Repository) (*Indexer, error) {
 }
 
 func (idx *Indexer) Run(ctx context.Context) {
-	idx.wg.Add(MaxWorker)
-	for i := 0; i < MaxWorker; i++ {
+	idx.wg.Add(NumberOfWorker)
+	for i := 0; i < NumberOfWorker; i++ {
 		go idx.fetchWorker(ctx, i, idx.endpoint)
 	}
 
@@ -63,7 +62,7 @@ func (idx *Indexer) Run(ctx context.Context) {
 
 	for {
 		select {
-		case <-time.Tick(Interval * time.Second):
+		case <-time.Tick(FetchInterval * time.Second):
 			idx.updateLatestNumber(ctx)
 			idx.makeRoutineJobs(ctx)
 		case err := <-idx.errors:
@@ -183,20 +182,15 @@ func (idx *Indexer) fetchWorker(ctx context.Context, id int, endpoint string) {
 
 func (idx *Indexer) confirmWorker(ctx context.Context) {
 	defer idx.wg.Done()
-	client, err := NewClient(idx.endpoint)
-	if err != nil {
-		idx.errors <- fmt.Errorf("[ConfirmWorker] failed to create Client in ConfirmWorker, %v", err)
-		return
-	}
-	_ = client
+	confirmInterval := ConfirmationNeeded * SecondPerBlock * time.Second
 
 	for {
 		select {
-		case <-time.Tick(ConfirmationNeeded * SecondPerBlock * time.Second):
+		case <-time.Tick(confirmInterval):
 			blocks, err := idx.repo.GetUnconfirmedBlocks()
 			if err != nil {
 				idx.errors <- fmt.Errorf("failed to get unconfirmed blocks ConfirmWorker, %v", err)
-				return
+				continue
 			}
 
 			if len(blocks) < 2 {
@@ -204,10 +198,11 @@ func (idx *Indexer) confirmWorker(ctx context.Context) {
 				continue
 			}
 
+			from := int(blocks[0].Number)
 			to := idx.currentLatest - ConfirmationNeeded
-			log.Printf("[ConfirmWorker] checking block from %d to %d\n", int(blocks[0].Number), to)
+			log.Printf("[ConfirmWorker] checking block from %d to %d\n", from, to)
 
-			var validatedBlocks []*Block
+			var confirmedBlocks []*Block
 			for i := 0; i < len(blocks)-1; i++ {
 				if blocks[i].Number >= to {
 					break
@@ -219,15 +214,14 @@ func (idx *Indexer) confirmWorker(ctx context.Context) {
 					for j := blocks[i+1].Number; j < to; j++ {
 						idx.addJob(j)
 					}
-
 					break
 				}
 
-				validatedBlocks = append(validatedBlocks, blocks[i])
+				confirmedBlocks = append(confirmedBlocks, blocks[i])
 			}
-			log.Printf("[ConfirmWorker] %d blocks validated, update repo\n", len(validatedBlocks))
+			log.Printf("[ConfirmWorker] %d blocks confirmed, update repo\n", len(confirmedBlocks))
 
-			err = idx.repo.ConfirmBlocks(validatedBlocks)
+			err = idx.repo.ConfirmBlocks(confirmedBlocks)
 			if err != nil {
 				idx.errors <- fmt.Errorf("[ConfirmWorker] failed to confirm blocks, %v", err)
 				return
